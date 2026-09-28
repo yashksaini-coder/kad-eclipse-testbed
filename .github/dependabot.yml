@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # This crate depends on undocumented behaviour of libp2p-kad's event
+      # semantics under BucketInserts::Manual. A minor bump can change that
+      # meaning without breaking compilation, so these are reviewed by hand
+      # against the release notes and the kad source, never auto-merged.
+      - dependency-name: "libp2p"
+      - dependency-name: "libp2p-*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"
