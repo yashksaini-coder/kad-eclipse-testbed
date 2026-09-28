@@ -1,7 +1,7 @@
-# libp2p-kad 0.48 (shipped in libp2p 0.56) builds on stable well below this, but
-# kad master (0.49) raises MSRV to 1.88.0. Pin at that so moving to a git
-# dependency on rust-libp2p master — likely, since the SubnetDiversityFilter is
-# ultimately aimed upstream — does not become a toolchain surprise mid-review.
+# libp2p-kad 0.49 (shipped in libp2p 0.57) raises MSRV to 1.88.0; current stable
+# is well past that. Pinned rather than `stable` so a new rustc/clippy release
+# cannot turn CI red without a commit doing it — the same reason ci.yml pins the
+# clippy/test jobs. Bump this deliberately, in step with the crates.
 [toolchain]
-channel = "1.88.0"
+channel = "1.98.1"
 components = ["rustfmt", "clippy"]

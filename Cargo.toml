@@ -2,7 +2,7 @@
 name = "kad-eclipse-testbed"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.83"
+rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 description = "Empirical eclipse-attack testbed for rust-libp2p Kademlia"
 repository = "https://github.com/yashksaini-coder/kad-eclipse-testbed"
@@ -16,14 +16,15 @@ keywords = ["libp2p", "kademlia", "dht", "eclipse", "sybil"]
 categories = ["network-programming"]
 
 [dependencies]
-# libp2p 0.56.0 pins libp2p-identity ^0.2.12 (transitively, via libp2p-core 0.43).
+# libp2p 0.57.0 resolves libp2p-identity 0.3.0 (transitively, via libp2p-core).
 #
-# DO NOT add `libp2p-identity = "0.3"` as a direct dependency. 0.3.0 shipped
-# 2026-07-28 and is semver-incompatible with the 0.2.x that libp2p 0.56 resolves
-# to. Cargo will happily build BOTH, and you get two distinct `PeerId` types with
-# identical names. The errors read like nonsense ("expected PeerId, found
-# PeerId"). Use the `libp2p::identity` re-export instead — see src/attack.rs.
-libp2p = { version = "0.56", default-features = false, features = [
+# DO NOT add `libp2p-identity` as a direct dependency at a DIFFERENT major than
+# the facade resolves — e.g. an old `= "0.2"` alongside 0.57's 0.3.x. Cargo will
+# happily build BOTH, and you get two distinct `PeerId` types with identical
+# names, whose errors read like nonsense ("expected PeerId, found PeerId"). Use
+# the `libp2p::identity` re-export instead — see src/attack.rs — and it tracks
+# whatever the facade pins across bumps for free.
+libp2p = { version = "0.57", default-features = false, features = [
     "kad",
     "tcp",
     "noise",
