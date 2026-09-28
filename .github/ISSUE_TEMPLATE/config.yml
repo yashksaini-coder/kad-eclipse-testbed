@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Suspected vulnerability in libp2p itself
+    url: https://github.com/libp2p/rust-libp2p/security/policy
+    about: Do not open a public issue here. Report through libp2p's own disclosure process first.

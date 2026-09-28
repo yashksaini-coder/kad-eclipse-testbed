@@ -1,0 +1,8 @@
+# Every path needs an owner's review. Applies to the owner's own PRs too when
+# branch rules have enforce_admins enabled.
+*                       @yashksaini-coder
+
+# Measurement code carries a higher review bar — see CONTRIBUTING.md.
+/src/metrics.rs         @yashksaini-coder
+/src/testbed.rs         @yashksaini-coder
+/docs/methodology.md    @yashksaini-coder
