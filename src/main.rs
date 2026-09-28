@@ -13,7 +13,15 @@ use tracing_subscriber::EnvFilter;
 #[command(
     name = "kad-eclipse-testbed",
     about = "Eclipse-attack testbed and subnet-diversity filter for rust-libp2p Kademlia",
-    version
+    version,
+    after_help = "EXAMPLES:\n  \
+        # How cheap is a targeted identity? Standalone, no network.\n  \
+        kad-eclipse-testbed grind --trials 1000000 --keep 20\n\n  \
+        # Run the full scenario matrix and write metrics as JSON.\n  \
+        kad-eclipse-testbed run --scenario all --output docs/results/matrix.json\n\n  \
+        # The /16-vs-/24 subnet-prefix sweep (see docs/methodology.md).\n  \
+        kad-eclipse-testbed run --scenario diversity --prefix-v4 16\n\n\
+        Run `<command> --help` for the flags of a specific subcommand."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -49,12 +57,15 @@ struct GrindArgs {
 
 #[derive(Args)]
 struct RunArgs {
+    /// Honest nodes in the simulated network.
     #[arg(long, default_value_t = 50)]
     honest_peers: usize,
 
+    /// Attacker identities ground toward the target and seated.
     #[arg(long, default_value_t = 30)]
     attacker_peers: usize,
 
+    /// Keypair grind trials the attacker spends producing those identities.
     #[arg(long, default_value_t = 100_000)]
     trials: usize,
 
@@ -75,9 +86,11 @@ struct RunArgs {
     #[arg(long, default_value_t = 48)]
     prefix_v6: u8,
 
+    /// Max peers per subnet within one k-bucket (py-libp2p MAX_PEERS_PER_SUBNET). 0 disables.
     #[arg(long, default_value_t = 2)]
     max_per_subnet: usize,
 
+    /// Max peers per subnet across the whole routing table. 0 disables.
     #[arg(long, default_value_t = 6)]
     max_per_subnet_table_wide: usize,
 
