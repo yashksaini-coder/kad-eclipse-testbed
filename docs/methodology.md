@@ -50,6 +50,28 @@ providers is not shippable regardless of how well it scores on Q1.
 worthless against a static routing table — grind once, squat forever. Periodic
 re-randomisation is the part of that argument that needs no spec change.
 
+Each cell of the matrix runs this loop, *n* ≥ 10 times with recorded seeds:
+
+```mermaid
+flowchart TD
+    S(["scenario × seed (n ≥ 10)"]) --> BOOT["spin honest swarms on /memory<br/>wire identify into every node"]
+    BOOT --> CONV{"routing tables converged?"}
+    CONV -->|"no — poll, never sleep"| CONV
+    CONV -->|yes| SEAT["grind attacker IDs toward T<br/>assign synthetic subnets · join"]
+    SEAT --> SAMPLE["sample victim's k-closest for T<br/>on a fixed interval"]
+    SAMPLE --> LOOK["issue GET_VALUE lookups<br/>count honest-record hits"]
+    LOOK --> KL["K-L divergence over the<br/>closest-k CPL distribution"]
+    KL --> OUT(["ScenarioMetrics →<br/>docs/results/&lt;date&gt;-&lt;scenario&gt;.json"])
+
+    classDef warm fill:#fef9c3,stroke:#ca8a04,color:#713f12;
+    classDef out fill:#dcfce7,stroke:#16a34a,color:#14532d;
+    class CONV warm;
+    class OUT out;
+```
+
+Warm-up (everything before the first sample) is excluded by polling for
+convergence, not by a fixed sleep — see *Controls and confounds* below.
+
 ## Metrics
 
 1. **Contamination ratio** — attacker share of the victim's k-closest set for

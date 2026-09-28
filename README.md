@@ -84,6 +84,37 @@ docs/
   repo-setup.md   branch rules and one-time gh commands
 ```
 
+## How it fits together
+
+```mermaid
+flowchart LR
+    subgraph ATK["src/attack.rs"]
+        G["TargetedIdGenerator<br/>grinds PeerIds toward key T"]
+    end
+    subgraph POL["src/policy.rs"]
+        S["subnet_of()<br/>group by /24 and /48"]
+        L["AdmissionLedger<br/>per-bucket + table-wide caps"]
+    end
+    subgraph FLT["src/filter.rs"]
+        F["SubnetDiversityFilter<br/>wraps kad::Behaviour"]
+    end
+    subgraph TB["src/testbed.rs"]
+        T["run() scenario matrix<br/>(stub)"]
+    end
+    subgraph MET["src/metrics.rs"]
+        M["contamination · lookup success<br/>subnets_required · K-L detectability"]
+    end
+
+    G -->|"attacker identities"| T
+    F -->|"subnet_of()"| S
+    F -->|"try_admit()"| L
+    T -->|"one filter per scenario"| F
+    T -->|"emits"| M
+
+    classDef mod fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b;
+    class G,S,L,F,T,M mod;
+```
+
 ## Why the filter is not the product
 
 `SubnetDiversityFilter` wraps `kad::Behaviour` and depends on the *event
@@ -92,6 +123,35 @@ permission." That is an observable implementation detail, not a documented
 contract, so a kad minor release could change its meaning without breaking
 compilation. Silent semantic drift is the worst failure mode a security
 component has.
+
+The admission decision it makes on every peer, under `BucketInserts::Manual`:
+
+```mermaid
+flowchart TD
+    K["kad::Event (Manual inserts)"] --> Q{"event kind?"}
+    Q -->|"RoutablePeer /<br/>PendingRoutablePeer"| EN{"policy enabled?"}
+    Q -->|"RoutingUpdated{old_peer}"| REL["ledger.release(old_peer)"]
+    Q -->|"anything else"| PASS["emit Event::Kad<br/>(passthrough)"]
+
+    EN -->|no| ADMIT
+    EN -->|yes| EX{"subnet_of(addr)<br/>globally routable?"}
+    EX -->|"None — exempt<br/>DNS · relay · RFC1918 · CGNAT · ULA"| ADMIT
+    EX -->|"Some(subnet)"| IDEM{"peer already<br/>in ledger?"}
+    IDEM -->|"yes (address update)"| ADMIT
+    IDEM -->|no| TW{"table-wide<br/>cap hit?"}
+    TW -->|yes| RJ1["Event::PeerRejected<br/>TableSubnetFull"]
+    TW -->|no| BK{"per-bucket<br/>cap hit?"}
+    BK -->|yes| RJ2["Event::PeerRejected<br/>BucketSubnetFull"]
+    BK -->|no| ADMIT["kad.add_address(peer, addr)<br/>ledger records the slot"]
+
+    classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d;
+    classDef no fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
+    class ADMIT ok;
+    class RJ1,RJ2 no;
+```
+
+Rejection is refusal of a routing-table *slot*, never an eviction of a resident
+peer — the reject-don't-evict semantics py-libp2p #1399 also ships.
 
 The durable version of this belongs behind an explicit hook inside
 `libp2p-kad`, the way go-libp2p put `peerdiversity` inside the kbucket package
