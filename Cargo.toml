@@ -1,0 +1,61 @@
+[package]
+name = "kad-eclipse-testbed"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+license = "MIT OR Apache-2.0"
+description = "Empirical eclipse-attack testbed for rust-libp2p Kademlia"
+repository = "https://github.com/yashksaini-coder/kad-eclipse-testbed"
+
+# Not published to crates.io yet, deliberately. The artifact worth publishing is
+# the measurement, and the measurement does not exist until testbed::run does.
+# Flip this once there are numbers in docs/results/. Squatting the name earlier
+# just creates an abandoned crate.
+publish = false
+keywords = ["libp2p", "kademlia", "dht", "eclipse", "sybil"]
+categories = ["network-programming"]
+
+[dependencies]
+# libp2p 0.56.0 pins libp2p-identity ^0.2.12 (transitively, via libp2p-core 0.43).
+#
+# DO NOT add `libp2p-identity = "0.3"` as a direct dependency. 0.3.0 shipped
+# 2026-07-28 and is semver-incompatible with the 0.2.x that libp2p 0.56 resolves
+# to. Cargo will happily build BOTH, and you get two distinct `PeerId` types with
+# identical names. The errors read like nonsense ("expected PeerId, found
+# PeerId"). Use the `libp2p::identity` re-export instead — see src/attack.rs.
+libp2p = { version = "0.56", default-features = false, features = [
+    "kad",
+    "tcp",
+    "noise",
+    "yamux",
+    "identify",
+    "macros",
+    "tokio",
+] }
+
+futures = "0.3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal"] }
+
+ipnet = { version = "2", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+
+# NOTE: no `rand` dependency. `libp2p::identity::Keypair::generate_ed25519()`
+# seeds itself; pulling in our own `rand` risks a second copy of rand_core at a
+# different major version, which is the same class of problem as the identity
+# pin above. If a seeded/reproducible generator is needed later, take the rand
+# version from `cargo tree -i rand` rather than picking the latest.
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+
+[[bin]]
+name = "kad-eclipse-testbed"
+path = "src/main.rs"
+
+[profile.release]
+debug = 1 # keep symbols: the ID grinder is the hot loop worth profiling

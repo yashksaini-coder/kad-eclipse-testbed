@@ -1,0 +1,7 @@
+# libp2p-kad 0.48 (shipped in libp2p 0.56) builds on stable well below this, but
+# kad master (0.49) raises MSRV to 1.88.0. Pin at that so moving to a git
+# dependency on rust-libp2p master — likely, since the SubnetDiversityFilter is
+# ultimately aimed upstream — does not become a toolchain surprise mid-review.
+[toolchain]
+channel = "1.88.0"
+components = ["rustfmt", "clippy"]
