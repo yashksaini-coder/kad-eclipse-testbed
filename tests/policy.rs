@@ -20,9 +20,11 @@ fn net(s: &str) -> IpNet {
 #[test]
 fn groups_public_ipv4_by_prefix() {
     let policy = DiversityPolicy::default();
+    // A genuinely globally-routable address, NOT an RFC 5737 documentation
+    // range (203.0.113.0/24 etc.) — those are exempt, see the test below.
     assert_eq!(
-        policy.subnet_of(&addr("/ip4/203.0.113.7/tcp/4001")),
-        Some(net("203.0.113.0/24"))
+        policy.subnet_of(&addr("/ip4/45.33.62.7/tcp/4001")),
+        Some(net("45.33.62.0/24"))
     );
 }
 
@@ -37,8 +39,10 @@ fn wider_prefix_collapses_more_peers_into_one_group() {
         prefix_len_v4: 16,
         ..DiversityPolicy::default()
     };
-    let a = addr("/ip4/198.51.100.1/tcp/4001");
-    let b = addr("/ip4/198.51.200.1/tcp/4001");
+    // Same /16, different /24 — both globally routable (45.33.0.0/16 is real
+    // allocated space, unlike the 198.51.0.0/16 documentation range).
+    let a = addr("/ip4/45.33.100.1/tcp/4001");
+    let b = addr("/ip4/45.33.200.1/tcp/4001");
 
     assert_ne!(narrow.subnet_of(&a), narrow.subnet_of(&b));
     assert_eq!(wide.subnet_of(&a), wide.subnet_of(&b));
@@ -52,8 +56,9 @@ fn private_loopback_and_cgnat_are_exempt() {
         "/ip4/10.0.0.4/tcp/4001",
         "/ip4/192.168.1.9/tcp/4001",
         "/ip4/172.16.5.5/tcp/4001",
-        "/ip4/100.64.3.1/tcp/4001", // CGNAT
+        "/ip4/100.64.3.1/tcp/4001",  // CGNAT
         "/ip4/169.254.1.1/tcp/4001", // link-local
+        "/ip4/203.0.113.7/tcp/4001", // RFC 5737 documentation (TEST-NET-3)
     ] {
         assert_eq!(policy.subnet_of(&addr(a)), None, "{a} should be exempt");
     }
@@ -62,8 +67,14 @@ fn private_loopback_and_cgnat_are_exempt() {
 #[test]
 fn dns_and_relayed_peers_are_exempt() {
     let policy = DiversityPolicy::default();
-    assert_eq!(policy.subnet_of(&addr("/dns4/bootstrap.example/tcp/4001")), None);
-    assert_eq!(policy.subnet_of(&addr("/ip4/10.0.0.1/tcp/4001/p2p-circuit")), None);
+    assert_eq!(
+        policy.subnet_of(&addr("/dns4/bootstrap.example/tcp/4001")),
+        None
+    );
+    assert_eq!(
+        policy.subnet_of(&addr("/ip4/10.0.0.1/tcp/4001/p2p-circuit")),
+        None
+    );
 }
 
 #[test]
@@ -116,8 +127,12 @@ fn the_cap_is_per_bucket_not_global() {
     let subnet = net("203.0.113.0/24");
 
     for bucket in [Some(3), Some(4), Some(5)] {
-        assert!(ledger.try_admit(PeerId::random(), subnet, bucket, &policy).is_ok());
-        assert!(ledger.try_admit(PeerId::random(), subnet, bucket, &policy).is_ok());
+        assert!(ledger
+            .try_admit(PeerId::random(), subnet, bucket, &policy)
+            .is_ok());
+        assert!(ledger
+            .try_admit(PeerId::random(), subnet, bucket, &policy)
+            .is_ok());
     }
     assert_eq!(ledger.tracked_peers(), 6);
 }
@@ -135,10 +150,18 @@ fn table_wide_cap_catches_what_the_bucket_cap_misses() {
     let mut ledger = AdmissionLedger::new();
     let subnet = net("203.0.113.0/24");
 
-    assert!(ledger.try_admit(PeerId::random(), subnet, Some(1), &policy).is_ok());
-    assert!(ledger.try_admit(PeerId::random(), subnet, Some(1), &policy).is_ok());
-    assert!(ledger.try_admit(PeerId::random(), subnet, Some(2), &policy).is_ok());
-    assert!(ledger.try_admit(PeerId::random(), subnet, Some(2), &policy).is_ok());
+    assert!(ledger
+        .try_admit(PeerId::random(), subnet, Some(1), &policy)
+        .is_ok());
+    assert!(ledger
+        .try_admit(PeerId::random(), subnet, Some(1), &policy)
+        .is_ok());
+    assert!(ledger
+        .try_admit(PeerId::random(), subnet, Some(2), &policy)
+        .is_ok());
+    assert!(ledger
+        .try_admit(PeerId::random(), subnet, Some(2), &policy)
+        .is_ok());
 
     // Different bucket, so the per-bucket cap has nothing to say — but the table
     // is already 4 deep in this subnet.
@@ -195,7 +218,9 @@ fn disabled_policy_admits_everything() {
     let subnet = net("203.0.113.0/24");
 
     for _ in 0..50 {
-        assert!(ledger.try_admit(PeerId::random(), subnet, Some(0), &policy).is_ok());
+        assert!(ledger
+            .try_admit(PeerId::random(), subnet, Some(0), &policy)
+            .is_ok());
     }
     assert!(!policy.is_enabled());
 }

@@ -213,11 +213,7 @@ impl AdmissionLedger {
         }
 
         if policy.max_per_subnet_per_bucket > 0 {
-            let n = self
-                .per_bucket
-                .get(&(bucket, subnet))
-                .copied()
-                .unwrap_or(0);
+            let n = self.per_bucket.get(&(bucket, subnet)).copied().unwrap_or(0);
             if n >= policy.max_per_subnet_per_bucket {
                 return Err(RejectReason::BucketSubnetFull);
             }

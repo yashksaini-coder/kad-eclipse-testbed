@@ -69,7 +69,10 @@ use crate::policy::{AdmissionLedger, DiversityPolicy, DiversityStats, RejectReas
 #[derive(Debug)]
 pub enum Event {
     /// Passthrough of an inner Kademlia event.
-    Kad(kad::Event),
+    ///
+    /// Boxed because `kad::Event` is large (~320 bytes) and would otherwise
+    /// inflate every `PeerRejected` too — `clippy::large_enum_variant`.
+    Kad(Box<kad::Event>),
     /// A peer was refused a routing table slot on diversity grounds.
     ///
     /// This event is the point of the whole crate: it is what makes the
@@ -196,7 +199,7 @@ where
             // taking the slot when the pending entry is applied.
             kad::Event::PendingRoutablePeer { peer, address } => self.consider(peer, address),
 
-            other => Some(Event::Kad(other)),
+            other => Some(Event::Kad(Box::new(other))),
         }
     }
 }
@@ -225,8 +228,12 @@ where
         local_addr: &Multiaddr,
         remote_addr: &Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        self.inner
-            .handle_established_inbound_connection(connection_id, peer, local_addr, remote_addr)
+        self.inner.handle_established_inbound_connection(
+            connection_id,
+            peer,
+            local_addr,
+            remote_addr,
+        )
     }
 
     fn handle_pending_outbound_connection(

@@ -125,11 +125,7 @@ fn grind(args: GrindArgs) -> anyhow::Result<()> {
     }
     println!();
     for (i, id) in result.identities.iter().take(5).enumerate() {
-        println!(
-            "  #{i}  {}  ilog2(d)={:?}",
-            id.peer_id,
-            id.distance.ilog2()
-        );
+        println!("  #{i}  {}  ilog2(d)={:?}", id.peer_id, id.distance.ilog2());
     }
     if result.identities.len() > 5 {
         println!("  … {} more", result.identities.len() - 5);
