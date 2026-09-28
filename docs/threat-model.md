@@ -25,6 +25,22 @@ transport layer, or compromise honest nodes.
 4. Occupy the "closest to `T`" slots in honest routing tables.
 5. When queried for `T`, answer "no record".
 
+```mermaid
+flowchart TD
+    A(["choose target key T"]) --> B["grind Ed25519 keypairs<br/>keep PeerIds XOR-closest to T"]
+    B --> C{"a full k-bucket<br/>of close IDs yet?"}
+    C -->|no| B
+    C -->|yes| D["join normally · sign everything<br/>behave correctly so nothing evicts"]
+    D --> E{"all closest-k slots<br/>for T are attacker-held?"}
+    E -->|"not yet — cheap: IDs are free"| B
+    E -->|yes| F["queried for T → answer 'no record'"]
+    F --> G(["eclipse: absence is indistinguishable<br/>from a key nobody published"])
+
+    B -.->|"the only scarce input:<br/>address diversity (rented)"| D
+    classDef win fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
+    class G win;
+```
+
 Step 5 is why this is hard to detect: the attacker never has to produce a
 forged record. Reporting absence is indistinguishable from a key nobody
 published.
