@@ -4,9 +4,10 @@ An empirical testbed for eclipse attacks on rust-libp2p's Kademlia DHT.
 
 > **Status: scaffold, pre-measurement.** The attack grinder, the diversity
 > policy, the reference filter and the metrics are written. `testbed::run` is a
-> stub. **Nothing here has been through a compiler yet** — it was writtend
-> against the `libp2p-kad-v0.48.0` source tree rather than from memory, but
-> `make check` is the first task. Not published to crates.io, deliberately.
+> stub. The crate **compiles** — `cargo check` is green against
+> `libp2p-kad-v0.49.0` (in `libp2p 0.57`) on Rust 1.98.1 — but `make all` is not
+> yet green: `cargo fmt`, one `clippy` lint and two `policy` tests still need
+> fixing. Not published to crates.io, deliberately.
 
 ## What this is for
 
@@ -108,8 +109,9 @@ table-wide cap defaulting to `0` (#1442). go-libp2p uses `/16` and
 three answers, and no measurement behind any of them.
 
 rust-libp2p is option value, not the thesis. As of September 2026 it has had no
-non-dependabot merge in over five weeks and no `libp2p-kad` release since
-0.48.0 in June 2025, so nothing here is sequenced behind an upstream decision.
+non-dependabot merge in over five weeks; `libp2p-kad` has since moved 0.48.0 →
+0.49.0 (in `libp2p 0.57`), which this crate now builds against, but nothing here
+is sequenced behind an upstream decision regardless.
 
 ## Roadmap
 

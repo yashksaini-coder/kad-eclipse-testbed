@@ -19,26 +19,32 @@ chosen by argument. go-libp2p uses `/16` and `maxForTable=3`. This repository's
 scaffold picked `6`. Three implementations, three answers, no data.
 
 rust-libp2p is option value. As of September 2026 it has had no non-dependabot
-merge in over five weeks and no `libp2p-kad` release since 0.48.0 in June 2025,
-so nothing here should be sequenced behind an upstream decision.
+merge in over five weeks; `libp2p-kad` has since moved 0.48.0 → 0.49.0 (in
+`libp2p 0.57`), which this crate now builds against, but nothing here should be
+sequenced behind an upstream decision regardless.
 
 ---
 
 ## Phase 0 — Make it compile
 
-**Effort:** half a day.
+**Effort:** half a day. **Partly done.**
 
-Nothing in this repository has been through a compiler. It was written against
-the `libp2p-kad-v0.48.0` source tree, but that is not the same as building.
+`cargo check --all-targets` is green against `libp2p 0.57` / `libp2p-kad 0.49.0`
+on Rust 1.98.1 — the `NetworkBehaviour` delegation in `src/filter.rs`, flagged
+here as the least certain part, compiled without changes. What remains for
+`make all`:
 
-- `make check`, then `make test`
-- Expect breakage in `src/filter.rs`; the `NetworkBehaviour` delegation is the
-  least certain part
-- Fix `Config::default()` deprecation if the compiler complains — the default
-  protocol name is not otherwise reachable, so `Config::default()` may be the
-  only option
+- `cargo fmt` — formatting drift in all four `.rs` files
+- one `clippy` lint — `large_enum_variant` on `filter::Event` (`Kad(kad::Event)`
+  is ≥320 bytes; box it or `#[allow]`)
+- two `policy` tests — `groups_public_ipv4_by_prefix` and
+  `wider_prefix_collapses_more_peers_into_one_group` assert on RFC 5737
+  documentation ranges (203.0.113.0/24, 198.51.100.0/24) that `policy.rs`
+  correctly treats as exempt, so `subnet_of` returns `None`. The fixtures need
+  genuinely-routable example addresses, not the test-net ranges.
 
-**Exit:** `make all` green. **Deliverable:** a repository that builds.
+**Exit:** `make all` green. **Deliverable:** a repository that builds and passes
+its own gate.
 
 ---
 
