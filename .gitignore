@@ -1,4 +1,7 @@
 /target
-Cargo.lock
 *.json.out
 /results
+
+# Cargo.lock is NOT ignored. This crate has a [[bin]], and more importantly its
+# value proposition is reproducible measurement: a committed result file means
+# nothing if the dependency graph behind it can drift. Commit the lockfile.

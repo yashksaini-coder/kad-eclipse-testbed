@@ -1,0 +1,35 @@
+{
+  "phase": 1,
+  "question": "How cheaply can an attacker produce peer IDs closer to a chosen key than the entire honest network?",
+  "recorded": "2026-09-29",
+  "transcription_note": "Values transcribed from stdout. The CLI has no --json output yet; adding one is the next task, and until then these records are hand-copied rather than machine-emitted.",
+  "environment": {
+    "host": "Intel Xeon @ 2.10GHz, 2 vCPU (cloud container, not a fast machine)",
+    "threads": 1,
+    "rustc": "1.95.0",
+    "note": "rust-toolchain.toml pins 1.98.1; this run used 1.95.0. Re-run on the pinned toolchain before citing externally.",
+    "profile": "release",
+    "libp2p": "0.57.0",
+    "libp2p_kad": "0.49.0"
+  },
+  "runs": [
+    { "trials": 100000,   "elapsed_s": 1.611,   "rate_keypairs_per_s": 62058, "best_cpl_bits": 17 },
+    { "trials": 1000000,  "elapsed_s": 15.828,  "rate_keypairs_per_s": 63177, "best_cpl_bits": 19 },
+    { "trials": 10000000, "elapsed_s": 157.213, "rate_keypairs_per_s": 63608, "best_cpl_bits": 21 }
+  ],
+  "honest_baseline": {
+    "network": "Amino DHT",
+    "source": "ProbeLab weekly crawl — unique peer IDs discovered",
+    "n_peers": 11268,
+    "expected_cpl_closest_honest_peer": 13.5,
+    "expected_cpl_20th_closest_honest_peer": 9.1,
+    "derivation": "For N uniformly distributed IDs, the number with CPL >= j to a random target is N * 2^-j. Closest: j = log2(N). 20th closest: j = log2(N/20)."
+  },
+  "finding": "At 1.6 seconds of single-core time, the best ground identity reaches CPL 17 against an honest network whose closest peer sits at CPL ~13.5. Roughly two seconds of laptop CPU beats the placement of every peer in the Amino DHT for a chosen key. Each 10x increase in trials buys about 2 more bits.",
+  "caveats": [
+    "best_cpl is the single closest identity. The CLI truncates output at 5 entries, so the worst of the kept 20 was not recorded; the claim that ALL 20 beat the honest 20th-closest (CPL ~9.1) is strongly implied by the margin but is not yet measured. Fix with --json output.",
+    "Single-threaded. Grinding is embarrassingly parallel, so a real attacker multiplies this by core count and again by renting machines.",
+    "Each run is a single sample of a maximum, so best_cpl has meaningful variance. Repeat n>=10 before quoting a precise figure.",
+    "Honest baseline is analytic, not measured from a crawl. Phase 2 replaces it with real data."
+  ]
+}

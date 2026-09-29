@@ -2,12 +2,16 @@
 
 An empirical testbed for eclipse attacks on rust-libp2p's Kademlia DHT.
 
-> **Status: scaffold, pre-measurement.** The attack grinder, the diversity
-> policy, the reference filter and the metrics are written. `testbed::run` is a
-> stub. The crate **compiles** — `cargo check` is green against
-> `libp2p-kad-v0.49.0` (in `libp2p 0.57`) on Rust 1.98.1 — but `make all` is not
-> yet green: `cargo fmt`, one `clippy` lint and two `policy` tests still need
-> fixing. Not published to crates.io, deliberately.
+> **Status: Phase 1 complete.** The crate builds and `make all` is green —
+> `cargo fmt`, `cargo clippy -- -D warnings` and all 17 tests pass against
+> `libp2p 0.57` / `libp2p-kad 0.49` on the pinned Rust 1.98.1. The first
+> measurement is committed in [`docs/results/`](docs/results/). `testbed::run`
+> is still a stub. Not published to crates.io, deliberately.
+>
+> **First result:** ~63,000 targeted keypairs/sec on one core of a slow cloud
+> vCPU. 1.6 seconds of grinding reaches CPL 17 against a key; the closest of
+> the Amino DHT's ~11,000 honest peers sits at CPL ~13.5. Targeted placement
+> is not merely cheap, it is free.
 
 ## What this is for
 
