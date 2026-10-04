@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 use kad_eclipse_testbed::{
-    attack::TargetedIdGenerator,
+    attack::{GrindResult, TargetedIdGenerator},
     metrics::ScenarioMetrics,
     policy::DiversityPolicy,
     testbed::{RunConfig, Scenario},
@@ -53,6 +53,20 @@ struct GrindArgs {
     /// How many of the closest identities to keep (default = libp2p's k).
     #[arg(long, default_value_t = 20)]
     keep: usize,
+
+    /// Seed for deterministic grinding. Omit to draw from OS randomness.
+    ///
+    /// With a seed, the same `--seed` and `--trials` always produce the same
+    /// identities — the reproducibility `docs/methodology.md` requires.
+    #[arg(long)]
+    seed: Option<u64>,
+
+    /// Emit machine-readable JSON instead of the human-readable summary.
+    ///
+    /// Includes the seed and the CPL of every kept identity, which is what the
+    /// result files under `docs/results/` need.
+    #[arg(long, default_value_t = false)]
+    json: bool,
 }
 
 #[derive(Args)]
@@ -112,10 +126,20 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn grind(args: GrindArgs) -> anyhow::Result<()> {
-    let generator = TargetedIdGenerator::for_key(args.target.clone()).best_n(args.keep);
+    let mut generator = TargetedIdGenerator::for_key(args.target.clone()).best_n(args.keep);
+    if let Some(seed) = args.seed {
+        generator = generator.seed(seed);
+    }
     let result = generator.generate(args.trials);
 
+    if args.json {
+        return print_grind_json(&args.target, &result);
+    }
+
     println!("target        : {}", args.target);
+    if let Some(seed) = result.seed {
+        println!("seed          : {seed}");
+    }
     println!("trials        : {}", result.trials);
     println!("elapsed       : {:.3?}", result.elapsed);
     println!("rate          : {:.0} keypairs/sec", result.rate());
@@ -130,6 +154,33 @@ fn grind(args: GrindArgs) -> anyhow::Result<()> {
     if result.identities.len() > 5 {
         println!("  … {} more", result.identities.len() - 5);
     }
+    Ok(())
+}
+
+/// Machine-readable grind output. Every kept identity's CPL is included, not
+/// only the best — the gap the committed Phase 1 result file flags, and what
+/// the dataset generator and result files need.
+fn print_grind_json(target: &str, result: &GrindResult) -> anyhow::Result<()> {
+    let kept: Vec<serde_json::Value> = result
+        .identities
+        .iter()
+        .map(|g| {
+            serde_json::json!({
+                "peer_id": g.peer_id.to_string(),
+                "cpl": g.cpl(),
+                "ilog2_distance": g.distance.ilog2(),
+            })
+        })
+        .collect();
+    let out = serde_json::json!({
+        "target": target,
+        "seed": result.seed,
+        "trials": result.trials,
+        "elapsed_s": result.elapsed.as_secs_f64(),
+        "rate_keypairs_per_s": result.rate(),
+        "kept": kept,
+    });
+    println!("{}", serde_json::to_string_pretty(&out)?);
     Ok(())
 }
 
