@@ -69,6 +69,13 @@ This project does not yet follow semantic versioning; it is pre-`0.1.0`.
 - The CPL figures quoted in `ae9045a`'s commit message had no result file
   behind them, also against the rule in `docs/results/README.md`. The
   superseding run records every seed, so any figure is now traceable.
+- The scaling claim was wrong. `ae9045a` recorded "each 10x in trials buys
+  roughly 2 more bits", read off three single-sample `best_cpl` values
+  (17/19/21). Properly measured, the headline statistic gains **+3.72 and +3.40
+  bits per 10x**, bracketing the log2(10) ≈ 3.32 that a geometric sample
+  predicts. The old figure was not a measurement of the attacker's scaling but
+  of three draws from a high-variance statistic that happened to land two apart.
+  The agreement with theory now serves as a sanity check on the grinder.
 
 ### Not yet implemented
 - `testbed::run` returns an error. The scenario matrix is defined; the harness

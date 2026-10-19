@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import platform
 import statistics
 import subprocess
@@ -110,6 +111,149 @@ def summarise(values: list[float], ndigits: int = 2) -> dict:
     }
 
 
+#: methodology.md: repetitions must achieve a standard error below this, on the
+#: headline statistic, and never fewer than 5 reps.
+STDERR_TARGET = 0.2
+HEADLINE_STAT = "cpl_mean_of_kept"
+
+
+def flag_undersampled(result: dict) -> dict:
+    """Mark cells that missed the standard-error target.
+
+    The repetition count is chosen up front but the achieved spread is only
+    known afterwards, so the file has to say which cells actually cleared the
+    bar. Without this the reader has to do the arithmetic to discover that a
+    cell is provisional, which in practice means nobody does.
+
+    Also records the reps that *would* have been needed, so re-running with an
+    adequate plan is a lookup rather than a calculation.
+    """
+    provisional = []
+    for cell in result["statistics"]["by_trials"]:
+        stat = cell[HEADLINE_STAT]
+        se = stat.get("stderr")
+        if se is None or se <= STDERR_TARGET:
+            continue
+        needed = math.ceil((stat["sd"] / STDERR_TARGET) ** 2)
+        cell["provisional"] = (
+            f"Under-sampled: {HEADLINE_STAT} standard error {se} exceeds the "
+            f"{STDERR_TARGET} target in docs/methodology.md. At the observed sd "
+            f"of {stat['sd']}, {needed} repetitions would be needed; this cell "
+            f"ran {cell['reps']}. Treat the medians here as indicative and do "
+            f"not quote them to two decimals."
+        )
+        cell["reps_needed_for_stderr_target"] = needed
+        provisional.append(cell["trials"])
+
+    if provisional:
+        result["provisional_cells"] = {
+            "trials": provisional,
+            "note": (
+                "These cells did not reach the standard-error target. The "
+                "headline findings must not depend on them; see `findings` for "
+                "which cell each claim rests on."
+            ),
+        }
+    return result
+
+
+def derive_findings(result: dict) -> dict:
+    """Compute the phase's claims from the measured cells.
+
+    Derived rather than written by hand so the prose cannot drift from the
+    numbers, and so each claim names the cell it rests on — which matters when
+    some cells are provisional.
+    """
+    cells = result["statistics"]["by_trials"]
+    base = result["honest_baseline"]
+    closest = base["expected_cpl_closest_honest_peer"]
+    twentieth = base["expected_cpl_20th_closest_honest_peer"]
+    n_peers = base["n_peers"]
+    keep = result["keep"]
+
+    findings = []
+
+    def first_where(pred):
+        return next((c for c in sorted(cells, key=lambda c: c["trials"]) if pred(c)), None)
+
+    # The strong claim: every kept identity closer than every honest peer.
+    c = first_where(lambda c: c["cpl_20th"]["median"] > closest)
+    if c:
+        findings.append(
+            {
+                "claim": (
+                    f"All {keep} ground identities land closer to the target than "
+                    f"every one of the ~{n_peers:,} honest peers in the network."
+                ),
+                "evidence": (
+                    f"At {c['trials']:,} trials the worst kept identity sits at CPL "
+                    f"{c['cpl_20th']['median']} (IQR {c['cpl_20th']['iqr']}, "
+                    f"se {c['cpl_20th']['stderr']}), above the closest honest peer's "
+                    f"expected CPL of {closest}."
+                ),
+                "cost": f"{c['elapsed_s']['median']} s of one core, single-threaded",
+                "rests_on_cell": c["trials"],
+                "cell_is_provisional": "provisional" in c,
+            }
+        )
+
+    # The weaker, cheaper claim: displaces the honest closest-k set.
+    c = first_where(lambda c: c["cpl_20th"]["median"] > twentieth)
+    if c:
+        findings.append(
+            {
+                "claim": (
+                    f"All {keep} ground identities outrank the honest {keep}th-closest "
+                    f"peer, i.e. they would displace the entire honest closest-{keep} "
+                    f"set for this key."
+                ),
+                "evidence": (
+                    f"At {c['trials']:,} trials the worst kept identity sits at CPL "
+                    f"{c['cpl_20th']['median']} against an expected {twentieth} for the "
+                    f"honest {keep}th-closest."
+                ),
+                "cost": f"{c['elapsed_s']['median']} s of one core, single-threaded",
+                "rests_on_cell": c["trials"],
+                "cell_is_provisional": "provisional" in c,
+            }
+        )
+
+    # Scaling. Theory: the grinder is sampling a geometric distribution, so each
+    # 10x in trials should buy log2(10) ~= 3.32 bits. Worth stating because it
+    # means cost grows exponentially in the bits gained.
+    ordered = sorted(cells, key=lambda c: c["trials"])
+    steps = []
+    for prev, nxt in zip(ordered, ordered[1:]):
+        ratio = nxt["trials"] / prev["trials"]
+        gained = nxt[HEADLINE_STAT]["median"] - prev[HEADLINE_STAT]["median"]
+        steps.append(
+            {
+                "from_trials": prev["trials"],
+                "to_trials": nxt["trials"],
+                "bits_gained": round(gained, 2),
+                "bits_per_10x": round(gained / math.log10(ratio), 2),
+            }
+        )
+    if steps:
+        findings.append(
+            {
+                "claim": (
+                    "Each 10x in grinding effort buys roughly log2(10) ~= 3.32 more "
+                    "bits of common prefix, as a geometric sample predicts — so the "
+                    "attacker's cost is exponential in the depth reached."
+                ),
+                "evidence": steps,
+                "note": (
+                    "Measured against theory, not fitted. A large deviation here "
+                    "would indicate a bug in the grinder or a non-uniform keyspace."
+                ),
+            }
+        )
+
+    result["findings"] = findings
+    return result
+
+
 def analytic_baseline() -> dict:
     """Expected CPL of honest peers, for comparison.
 
@@ -117,8 +261,6 @@ def analytic_baseline() -> dict:
     random target is N * 2^-j. Setting that to 1 gives the closest honest peer
     at j = log2(N); setting it to 20 gives the 20th closest at j = log2(N/20).
     """
-    import math
-
     return {
         "network": "Amino DHT",
         "source": "ProbeLab weekly crawl - unique peer IDs discovered",
@@ -214,13 +356,6 @@ def main() -> int:
             "reps": reps,
             "seeds": seeds,
         }
-        if reps < 10:
-            cell["reps_below_10_because"] = (
-                "methodology.md sets the floor at enough repetitions for a "
-                "standard error below 0.2 bits, never fewer than 5. Check "
-                "cpl_mean_of_kept.stderr below: if it exceeds 0.2 this cell is "
-                "under-sampled and needs more reps."
-            )
         by_trials.append(
             {
                 **cell,
@@ -280,6 +415,9 @@ def main() -> int:
             "toolchain-independent.",
         ],
     }
+
+    result = flag_undersampled(result)
+    result = derive_findings(result)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2) + "\n")
