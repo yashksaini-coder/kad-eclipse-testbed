@@ -83,18 +83,30 @@ def run_once(binary: Path, trials: int, seed: int) -> dict:
 
 
 def summarise(values: list[float], ndigits: int = 2) -> dict:
-    """Median and IQR, per methodology.md. Never a mean of a noisy statistic."""
+    """Median, IQR, achieved standard error, and the raw values.
+
+    ``methodology.md`` requires the median and IQR rather than a bare mean, and
+    (as amended after Phase 1) the achieved standard error alongside it, so a
+    reader can check whether the repetition count was sufficient instead of
+    trusting it. ``raw`` is included so every summary statistic here can be
+    recomputed from the file without re-running anything.
+    """
     ordered = sorted(values)
-    if len(ordered) >= 4:
+    n = len(ordered)
+    if n >= 4:
         q1, q3 = statistics.quantiles(ordered, n=4, method="inclusive")[0::2]
     else:
         q1, q3 = ordered[0], ordered[-1]
+    sd = statistics.stdev(ordered) if n > 1 else 0.0
     return {
         "median": round(statistics.median(ordered), ndigits),
         "iqr": [round(q1, ndigits), round(q3, ndigits)],
         "min": round(ordered[0], ndigits),
         "max": round(ordered[-1], ndigits),
-        "n": len(ordered),
+        "sd": round(sd, 3),
+        "stderr": round(sd / (n**0.5), 3) if n > 1 else None,
+        "n": n,
+        "raw": [round(v, ndigits) for v in values],
     }
 
 
@@ -197,11 +209,21 @@ def main() -> int:
                 flush=True,
             )
 
+        cell = {
+            "trials": trials,
+            "reps": reps,
+            "seeds": seeds,
+        }
+        if reps < 10:
+            cell["reps_below_10_because"] = (
+                "methodology.md sets the floor at enough repetitions for a "
+                "standard error below 0.2 bits, never fewer than 5. Check "
+                "cpl_mean_of_kept.stderr below: if it exceeds 0.2 this cell is "
+                "under-sampled and needs more reps."
+            )
         by_trials.append(
             {
-                "trials": trials,
-                "reps": reps,
-                "seeds": seeds,
+                **cell,
                 "cpl_mean_of_kept": summarise(mean_kept),
                 "cpl_20th": summarise(worst),
                 "cpl_best": summarise(best),
