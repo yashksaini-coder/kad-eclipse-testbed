@@ -1,4 +1,6 @@
 {
+  "superseded_by": "docs/results/2026-10-19-grind.json",
+  "superseded_reason": "Reported cpl_best from a single run per trial count. cpl_best is the maximum of a geometric sample with a standard deviation of 1.6-2.3 bits on this host, so it is not a usable point estimate; the superseding file leads with cpl_mean_of_kept (sd ~0.4) and cpl_20th over 10/10/5 seeded repetitions. These numbers were also hand-transcribed from stdout, which docs/results/README.md forbids; the replacement is emitted by scripts/phase1_grind.py. Retained unaltered as an audit trail - the finding it reported was not wrong, only imprecisely measured.",
   "phase": 1,
   "question": "How cheaply can an attacker produce peer IDs closer to a chosen key than the entire honest network?",
   "recorded": "2026-09-29",
@@ -13,13 +15,28 @@
     "libp2p_kad": "0.49.0"
   },
   "runs": [
-    { "trials": 100000,   "elapsed_s": 1.611,   "rate_keypairs_per_s": 62058, "best_cpl_bits": 17 },
-    { "trials": 1000000,  "elapsed_s": 15.828,  "rate_keypairs_per_s": 63177, "best_cpl_bits": 19 },
-    { "trials": 10000000, "elapsed_s": 157.213, "rate_keypairs_per_s": 63608, "best_cpl_bits": 21 }
+    {
+      "trials": 100000,
+      "elapsed_s": 1.611,
+      "rate_keypairs_per_s": 62058,
+      "best_cpl_bits": 17
+    },
+    {
+      "trials": 1000000,
+      "elapsed_s": 15.828,
+      "rate_keypairs_per_s": 63177,
+      "best_cpl_bits": 19
+    },
+    {
+      "trials": 10000000,
+      "elapsed_s": 157.213,
+      "rate_keypairs_per_s": 63608,
+      "best_cpl_bits": 21
+    }
   ],
   "honest_baseline": {
     "network": "Amino DHT",
-    "source": "ProbeLab weekly crawl — unique peer IDs discovered",
+    "source": "ProbeLab weekly crawl \u2014 unique peer IDs discovered",
     "n_peers": 11268,
     "expected_cpl_closest_honest_peer": 13.5,
     "expected_cpl_20th_closest_honest_peer": 9.1,

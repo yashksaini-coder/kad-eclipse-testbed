@@ -98,9 +98,20 @@ application to the IPFS DHT.
 
 - **Fixed seeds.** Every run records the seed. A result that does not reproduce
   from its recorded seed is a bug report, not a finding.
-- **Repetitions.** Each cell of the matrix runs *n* ≥ 10 times; report median
-  and interquartile range, never a single run. DHT convergence is noisy enough
-  that a single run will show whatever you hoped for.
+- **Repetitions.** Each cell runs *n* ≥ 10 times; report median and
+  interquartile range, never a single run. DHT convergence is noisy enough that
+  a single run will show whatever you hoped for.
+
+  *Amended 2026-10-19, after Phase 1.* The repetition count is a function of the
+  statistic's spread, and `n = 10` was chosen here before any spread was known.
+  Measured values on the Phase 1 host: `cpl_best` has sd 1.6–2.3 bits,
+  `cpl_mean_of_kept` about 0.4. So the floor is now: **enough repetitions for a
+  standard error below 0.2 bits, and never fewer than 5.** For a statistic as
+  tight as `cpl_mean_of_kept` that is 5; for `cpl_best` it is well above 10,
+  which is a reason to stop quoting `cpl_best` rather than a reason to run it
+  more. Report the achieved standard error alongside the median so a reader can
+  check the choice instead of trusting it. Any cell below `n = 10` must say why
+  in the result file.
 - **Attacker budget held constant across scenarios.** Same grind trial count,
   same identity count. Only the defence changes.
 - **Honest network size held constant within a sweep.** Contamination is

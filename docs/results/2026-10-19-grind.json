@@ -1,0 +1,460 @@
+{
+  "phase": 1,
+  "question": "How cheaply can an attacker produce peer IDs closer to a chosen key than the entire honest network?",
+  "recorded": "2026-10-19",
+  "generated_at_utc": "2026-10-19T15:01:13+00:00",
+  "generated_by": "scripts/phase1_grind.py",
+  "reproduce": "cargo build --release && python3 scripts/phase1_grind.py --out <path>",
+  "target": "kad-eclipse-testbed/phase1-target",
+  "keep": 20,
+  "environment": {
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "pinned_channel": "1.98.1",
+    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "threads": 1,
+    "profile": "release",
+    "libp2p": "0.57.0",
+    "libp2p_kad": "0.49.0"
+  },
+  "statistics": {
+    "note": "Median and IQR per docs/methodology.md. Quote cpl_mean_of_kept and cpl_20th; cpl_best is a maximum and is roughly 5x noisier.",
+    "by_trials": [
+      {
+        "trials": 100000,
+        "reps": 10,
+        "seeds": [
+          265443576100000,
+          265445822922507,
+          265448069745014,
+          265450316567521,
+          265452563390028,
+          265454810212535,
+          265457057035042,
+          265459303857549,
+          265461550680056,
+          265463797502563
+        ],
+        "cpl_mean_of_kept": {
+          "median": 12.88,
+          "iqr": [
+            12.75,
+            13.25
+          ],
+          "min": 11.95,
+          "max": 13.9,
+          "sd": 0.517,
+          "stderr": 0.164,
+          "n": 10,
+          "raw": [
+            12.75,
+            12.75,
+            12.75,
+            13.9,
+            11.95,
+            13,
+            13.3,
+            12.75,
+            13.1,
+            13.4
+          ]
+        },
+        "cpl_20th": {
+          "median": 12.0,
+          "iqr": [
+            11.25,
+            12.0
+          ],
+          "min": 11,
+          "max": 12,
+          "sd": 0.483,
+          "stderr": 0.153,
+          "n": 10,
+          "raw": [
+            12,
+            12,
+            12,
+            12,
+            11,
+            12,
+            11,
+            11,
+            12,
+            12
+          ]
+        },
+        "cpl_best": {
+          "median": 16.0,
+          "iqr": [
+            14.25,
+            17.0
+          ],
+          "min": 14,
+          "max": 18,
+          "sd": 1.595,
+          "stderr": 0.504,
+          "n": 10,
+          "raw": [
+            14,
+            15,
+            14,
+            17,
+            14,
+            16,
+            17,
+            16,
+            18,
+            18
+          ]
+        },
+        "rate_keypairs_per_s": {
+          "median": 56919.0,
+          "iqr": [
+            56020.0,
+            57880.0
+          ],
+          "min": 48206.0,
+          "max": 61585.0,
+          "sd": 3689.225,
+          "stderr": 1166.635,
+          "n": 10,
+          "raw": [
+            61585.0,
+            58776.0,
+            52066.0,
+            56715.0,
+            57252.0,
+            57123.0,
+            58090.0,
+            56299.0,
+            55927.0,
+            48206.0
+          ]
+        },
+        "elapsed_s": {
+          "median": 1.757,
+          "iqr": [
+            1.728,
+            1.785
+          ],
+          "min": 1.624,
+          "max": 2.074,
+          "sd": 0.126,
+          "stderr": 0.04,
+          "n": 10,
+          "raw": [
+            1.624,
+            1.701,
+            1.921,
+            1.763,
+            1.747,
+            1.751,
+            1.721,
+            1.776,
+            1.788,
+            2.074
+          ]
+        }
+      },
+      {
+        "trials": 1000000,
+        "reps": 10,
+        "seeds": [
+          2654435761000000,
+          2654438007822507,
+          2654440254645014,
+          2654442501467521,
+          2654444748290028,
+          2654446995112535,
+          2654449241935042,
+          2654451488757549,
+          2654453735580056,
+          2654455982402563
+        ],
+        "cpl_mean_of_kept": {
+          "median": 16.6,
+          "iqr": [
+            16.27,
+            17.0
+          ],
+          "min": 15.85,
+          "max": 17.35,
+          "sd": 0.506,
+          "stderr": 0.16,
+          "n": 10,
+          "raw": [
+            15.95,
+            17.05,
+            17.35,
+            16.65,
+            17.15,
+            15.85,
+            16.25,
+            16.55,
+            16.35,
+            16.85
+          ]
+        },
+        "cpl_20th": {
+          "median": 15.0,
+          "iqr": [
+            15.0,
+            15.0
+          ],
+          "min": 15,
+          "max": 16,
+          "sd": 0.316,
+          "stderr": 0.1,
+          "n": 10,
+          "raw": [
+            15,
+            16,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15
+          ]
+        },
+        "cpl_best": {
+          "median": 20.0,
+          "iqr": [
+            19.25,
+            21.0
+          ],
+          "min": 18,
+          "max": 27,
+          "sd": 2.828,
+          "stderr": 0.894,
+          "n": 10,
+          "raw": [
+            19,
+            21,
+            27,
+            21,
+            25,
+            20,
+            18,
+            19,
+            20,
+            20
+          ]
+        },
+        "rate_keypairs_per_s": {
+          "median": 52283.0,
+          "iqr": [
+            49466.0,
+            54947.0
+          ],
+          "min": 45729.0,
+          "max": 55772.0,
+          "sd": 3430.558,
+          "stderr": 1084.838,
+          "n": 10,
+          "raw": [
+            55772.0,
+            53682.0,
+            50775.0,
+            49029.0,
+            50884.0,
+            48813.0,
+            45729.0,
+            54798.0,
+            55318.0,
+            54997.0
+          ]
+        },
+        "elapsed_s": {
+          "median": 19.14,
+          "iqr": [
+            18.199,
+            20.221
+          ],
+          "min": 17.93,
+          "max": 21.868,
+          "sd": 1.319,
+          "stderr": 0.417,
+          "n": 10,
+          "raw": [
+            17.93,
+            18.628,
+            19.695,
+            20.396,
+            19.652,
+            20.486,
+            21.868,
+            18.249,
+            18.077,
+            18.183
+          ]
+        }
+      },
+      {
+        "trials": 10000000,
+        "reps": 5,
+        "seeds": [
+          26544357610000000,
+          26544359856822507,
+          26544362103645014,
+          26544364350467521,
+          26544366597290028
+        ],
+        "cpl_mean_of_kept": {
+          "median": 20,
+          "iqr": [
+            19.65,
+            20.1
+          ],
+          "min": 19.25,
+          "max": 20.75,
+          "sd": 0.558,
+          "stderr": 0.249,
+          "n": 5,
+          "raw": [
+            19.65,
+            20.75,
+            20,
+            19.25,
+            20.1
+          ]
+        },
+        "cpl_20th": {
+          "median": 19,
+          "iqr": [
+            18.0,
+            19.0
+          ],
+          "min": 18,
+          "max": 19,
+          "sd": 0.548,
+          "stderr": 0.245,
+          "n": 5,
+          "raw": [
+            18,
+            19,
+            19,
+            18,
+            19
+          ]
+        },
+        "cpl_best": {
+          "median": 25,
+          "iqr": [
+            24.0,
+            25.0
+          ],
+          "min": 22,
+          "max": 27,
+          "sd": 1.817,
+          "stderr": 0.812,
+          "n": 5,
+          "raw": [
+            25,
+            27,
+            24,
+            22,
+            25
+          ]
+        },
+        "rate_keypairs_per_s": {
+          "median": 53467.0,
+          "iqr": [
+            53135.0,
+            53471.0
+          ],
+          "min": 52828.0,
+          "max": 54532.0,
+          "sd": 642.292,
+          "stderr": 287.242,
+          "n": 5,
+          "raw": [
+            53135.0,
+            54532.0,
+            53471.0,
+            53467.0,
+            52828.0
+          ]
+        },
+        "elapsed_s": {
+          "median": 187.03,
+          "iqr": [
+            187.018,
+            188.198
+          ],
+          "min": 183.378,
+          "max": 189.292,
+          "sd": 2.225,
+          "stderr": 0.995,
+          "n": 5,
+          "raw": [
+            188.198,
+            183.378,
+            187.018,
+            187.03,
+            189.292
+          ]
+        },
+        "provisional": "Under-sampled: cpl_mean_of_kept standard error 0.249 exceeds the 0.2 target in docs/methodology.md. At the observed sd of 0.558, 8 repetitions would be needed; this cell ran 5. Treat the medians here as indicative and do not quote them to two decimals.",
+        "reps_needed_for_stderr_target": 8
+      }
+    ]
+  },
+  "honest_baseline": {
+    "network": "Amino DHT",
+    "source": "ProbeLab weekly crawl - unique peer IDs discovered",
+    "n_peers": 11268,
+    "expected_cpl_closest_honest_peer": 13.5,
+    "expected_cpl_20th_closest_honest_peer": 9.1,
+    "derivation": "For N uniformly distributed IDs, the number with CPL >= j to a random target is N * 2^-j. Closest: j = log2(N). 20th closest: j = log2(N/20).",
+    "caveat": "Analytic, not crawled. Assumes uniform ID distribution, which holds for honest peers because peer IDs are hashes. Phase 2 replaces the address side of this with real crawl data."
+  },
+  "caveats": [
+    "Single-threaded. Grinding is embarrassingly parallel, so a real attacker multiplies throughput by core count and again by renting machines. Every cost figure here is therefore an upper bound on the attacker's time.",
+    "cpl_best is the maximum of a geometric sample; on this host its standard deviation is 1.6-2.3 bits. Two identical configurations can differ by 5 bits. Do not quote it as a point estimate.",
+    "The honest baseline is analytic, not crawled. Phase 2 replaces the address distribution with real Amino DHT data.",
+    "Measured on whatever rustc the environment reports above. If that differs from pinned_channel, re-run on the pinned toolchain before citing externally - the numbers have not been shown to be toolchain-independent."
+  ],
+  "provisional_cells": {
+    "trials": [
+      10000000
+    ],
+    "note": "These cells did not reach the standard-error target. The headline findings must not depend on them; see `findings` for which cell each claim rests on."
+  },
+  "findings": [
+    {
+      "claim": "All 20 ground identities land closer to the target than every one of the ~11,268 honest peers in the network.",
+      "evidence": "At 1,000,000 trials the worst kept identity sits at CPL 15.0 (IQR [15.0, 15.0], se 0.1), above the closest honest peer's expected CPL of 13.5.",
+      "cost": "19.14 s of one core, single-threaded",
+      "rests_on_cell": 1000000,
+      "cell_is_provisional": false
+    },
+    {
+      "claim": "All 20 ground identities outrank the honest 20th-closest peer, i.e. they would displace the entire honest closest-20 set for this key.",
+      "evidence": "At 100,000 trials the worst kept identity sits at CPL 12.0 against an expected 9.1 for the honest 20th-closest.",
+      "cost": "1.757 s of one core, single-threaded",
+      "rests_on_cell": 100000,
+      "cell_is_provisional": false
+    },
+    {
+      "claim": "Each 10x in grinding effort buys roughly log2(10) ~= 3.32 more bits of common prefix, as a geometric sample predicts \u2014 so the attacker's cost is exponential in the depth reached.",
+      "evidence": [
+        {
+          "from_trials": 100000,
+          "to_trials": 1000000,
+          "bits_gained": 3.72,
+          "bits_per_10x": 3.72
+        },
+        {
+          "from_trials": 1000000,
+          "to_trials": 10000000,
+          "bits_gained": 3.4,
+          "bits_per_10x": 3.4
+        }
+      ],
+      "note": "Measured against theory, not fitted. A large deviation here would indicate a bug in the grinder or a non-uniform keyspace."
+    }
+  ]
+}

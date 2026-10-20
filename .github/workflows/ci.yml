@@ -15,26 +15,53 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
+  # rust-toolchain.toml is the single source of truth for the compiler version.
+  #
+  # Previously each job hardcoded its own `toolchain:` value, and when
+  # rust-toolchain.toml was bumped to 1.98.1 those stayed at 1.88.0. Nothing
+  # failed, because rustup honours rust-toolchain.toml over whatever the action
+  # installed — so CI silently ran on a compiler none of its own config named.
+  # Reading the channel here and feeding it to every job makes that divergence
+  # structurally impossible rather than something to remember.
+  toolchain:
+    name: toolchain
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.read.outputs.channel }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: read
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' rust-toolchain.toml | head -n1)"
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::could not parse a [toolchain] channel"
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "pinned channel: $channel"
+
   fmt:
     name: fmt
     runs-on: ubuntu-latest
+    needs: toolchain
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ needs.toolchain.outputs.channel }}
           components: rustfmt
       - run: cargo fmt --all -- --check
 
   clippy:
     name: clippy
     runs-on: ubuntu-latest
+    needs: toolchain
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          # Match rust-toolchain.toml. Pinned rather than `stable` so a new
-          # clippy release cannot turn CI red without a commit doing it.
-          toolchain: "1.88.0"
+          toolchain: ${{ needs.toolchain.outputs.channel }}
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets --all-features
@@ -42,34 +69,104 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    needs: toolchain
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.88.0"
+          toolchain: ${{ needs.toolchain.outputs.channel }}
       - uses: Swatinem/rust-cache@v2
+      # Belt-and-braces: assert the compiler actually in use is the pinned one,
+      # so a future config mistake fails loudly instead of running green on
+      # something else. Skipped when the channel is a named track such as
+      # `stable`, which does not appear in `rustc --version` output.
+      - name: verify active toolchain matches the pin
+        run: |
+          set -euo pipefail
+          want='${{ needs.toolchain.outputs.channel }}'
+          got="$(rustc --version)"
+          case "$want" in
+            [0-9]*)
+              case "$got" in
+                *"$want"*) echo "ok: $got matches pinned $want" ;;
+                *) echo "::error::active rustc is '$got' but rust-toolchain.toml pins $want"; exit 1 ;;
+              esac
+              ;;
+            *) echo "channel '$want' is a named track; skipping exact-version check ($got)" ;;
+          esac
       - run: cargo test --all-features
 
   # Cheap smoke test of the attack path. Catches the case where the grinder
   # compiles but silently returns nothing useful — a class of bug that unit
-  # tests on a fixed seed can miss.
+  # tests on a fixed seed can miss. Also exercises --json, since the result
+  # files under docs/results/ are generated from it.
   grind-smoke:
     name: grind smoke
     runs-on: ubuntu-latest
+    needs: toolchain
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.88.0"
+          toolchain: ${{ needs.toolchain.outputs.channel }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo run --release -- grind --trials 20000 --keep 8
+      - name: grind --json emits parseable output with every kept CPL
+        run: |
+          set -euo pipefail
+          cargo run --release -- grind --trials 20000 --keep 8 --seed 1 --json > /tmp/grind.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open("/tmp/grind.json"))
+          for key in ("target", "trials", "elapsed_s", "rate_keypairs_per_s", "seed", "kept"):
+              assert key in d, f"missing key: {key}"
+          assert d["seed"] == 1, d["seed"]
+          assert len(d["kept"]) == 8, len(d["kept"])
+          assert all("cpl" in k for k in d["kept"]), "kept entry without cpl"
+          cpls = [k["cpl"] for k in d["kept"]]
+          assert cpls == sorted(cpls, reverse=True), f"kept not nearest-first: {cpls}"
+          print("ok:", cpls)
+          PY
+
+  # The committed result files must stay regenerable. This runs the real
+  # generator at a tiny trial count — it does not check the numbers, only that
+  # the pipeline from binary to result file still works.
+  results-regenerate:
+    name: results regenerate
+    runs-on: ubuntu-latest
+    needs: toolchain
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.toolchain.outputs.channel }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - run: python3 scripts/phase1_grind.py --plan 20000:3 --out /tmp/phase1-smoke.json
+      - name: result file has the documented shape
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/phase1-smoke.json"))
+          assert d["phase"] == 1
+          assert d["generated_by"] == "scripts/phase1_grind.py"
+          cell = d["statistics"]["by_trials"][0]
+          for stat in ("cpl_mean_of_kept", "cpl_20th", "cpl_best"):
+              assert set(cell[stat]) >= {"median", "iqr", "min", "max", "n"}, stat
+          assert len(cell["seeds"]) == cell["reps"]
+          print("ok: result shape valid")
+          PY
 
   docs:
     name: docs
     runs-on: ubuntu-latest
+    needs: toolchain
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.toolchain.outputs.channel }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo doc --no-deps --all-features
         env:
