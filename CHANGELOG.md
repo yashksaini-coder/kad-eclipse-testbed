@@ -77,6 +77,49 @@ This project does not yet follow semantic versioning; it is pre-`0.1.0`.
   of three draws from a high-variance statistic that happened to land two apart.
   The agreement with theory now serves as a sanity check on the grinder.
 
+### Fixed (correctness)
+- `SubnetDiversityFilter` discarded `add_address`'s `RoutingUpdate` and counted
+  every admitted peer in the ledger regardless of whether kad actually seated
+  it. `RoutablePeer` is emitted for two reasons — `BucketInserts::Manual` being
+  configured **or** the bucket being full — so admission is a request, not a
+  conclusion. On the bucket-full path the ledger inflated that subnet's
+  occupancy and would then refuse legitimate peers from it, causing exactly the
+  harm the filter exists to prevent. The ledger slot is now released when kad
+  reports `Pending` or `Failed`. Covered by
+  `ledger_releases_when_kad_declines_to_seat_the_peer`, verified to fail without
+  the fix.
+
+### Corrected (claims about other projects)
+Audit of every statement this repository makes about rust-libp2p. Four were
+wrong or unsupportable:
+- **"Eclipse-resistance proposals in rust-libp2p have failed on evidence, not
+  on merit."** Removed from `README.md` and `docs/methodology.md`. This
+  attributed a motive for the closure of issues #4769 and #1352 that the public
+  threads do not record. That two issues closed without a defence landing is
+  checkable; *why* is not, and is no longer asserted.
+- **"As of September 2026 it has had no non-dependabot merge in over five
+  weeks."** Removed from `README.md` and `docs/dev-plan.md`. False as of
+  2026-10-23: `master` has taken roughly fourteen human merges in the preceding
+  ten days from seven or more contributors, including external ones, and
+  shipped v0.57.1 on 2026-10-15. The scheduling conclusion it supported —
+  nothing here is sequenced behind an upstream decision — stands on its own and
+  needs no claim about anyone's velocity.
+- **"rust-libp2p — nothing"** in `docs/threat-model.md`'s prior-art list, and
+  the README table's "Eclipse testbed on real nodes: none". Scoped to the
+  address level, which is what was meant. rust-libp2p has shipped disjoint
+  lookup paths — the other S/Kademlia counter — since v0.20.0 and tests it
+  against an adversary in `s_kademlia_disjoint_paths` and
+  `disjoint_query_does_not_finish_before_all_paths_did`. What is absent is a
+  defence on *placement*, not attention to the threat.
+- **"an observable implementation detail, not a documented contract"** about
+  `BucketInserts::Manual` / `Event::RoutablePeer`, in `README.md` and
+  `src/filter.rs`. False: both are documented in kad's public rustdoc, which
+  states that under `Manual` peers enter the table only via `add_address` and
+  that `RoutablePeer` means the peer has not been added. The real caveats —
+  documented behaviour is not a stability guarantee, and a semantic change would
+  not fail to compile — are now stated accurately, and the second is why
+  `libp2p` is held back from automated dependency bumps.
+
 ### Not yet implemented
 - `testbed::run` returns an error. The scenario matrix is defined; the harness
   is not built. See Phase 4 in `docs/dev-plan.md`.
