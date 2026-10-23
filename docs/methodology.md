@@ -2,12 +2,14 @@
 
 This document is written **before** the measurements exist, deliberately.
 
-The whole strategic argument for this repository is that eclipse-resistance
-proposals in libp2p have failed on evidence, not on merit — rust-libp2p issues
-[#4769][4769] (Sybil defence) and [#1352][1352] (authenticated stratified
-k-buckets) were both closed without landing anything. If the numbers here are
-going to carry any weight, the protocol has to be fixed in advance so that
-nobody — including the author — can tune the experiment until it says something
+The whole strategic argument for this repository is that libp2p's three
+implementations have made three different choices about routing-table address
+diversity with no published measurement behind any of them, and that two
+rust-libp2p issues proposing further Sybil defences — [#4769][4769] and
+[#1352][1352] — closed without one landing. Why they closed is not recorded in
+the public threads and is not assumed here. If the numbers below are going to
+carry any weight, the protocol has to be fixed in advance so that nobody —
+including the author — can tune the experiment until it says something
 convenient.
 
 Changes to this document after the first results land must be recorded in

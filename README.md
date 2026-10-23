@@ -1,6 +1,14 @@
 # kad-eclipse-testbed
 
-An empirical testbed for eclipse attacks on rust-libp2p's Kademlia DHT.
+An adversarial measurement harness for Kademlia routing-table policy: what an
+eclipse attack costs, and what each defence raises that cost to. It uses
+rust-libp2p as a realistic substrate.
+
+**It is not a test suite, and it does not overlap rust-libp2p's.** Their 77 kad
+tests ask whether the implementation behaves correctly — including against a
+scripted adversary, which two of them do. This asks what an attack costs at
+population scale. A test has a pass/fail oracle; a measurement has an error bar.
+Neither is a better-stocked version of the other.
 
 > **Status: Phase 1 complete.** The crate builds and `make all` is green —
 > `cargo fmt`, `cargo clippy -- -D warnings` and all 20 tests pass against
@@ -32,14 +40,24 @@ the column not to quote.
 
 ## What this is for
 
-Eclipse-resistance proposals in rust-libp2p have failed on evidence, not on
-merit. Issues [#4769][4769] (Sybil defence) and [#1352][1352] (authenticated
-stratified k-buckets) were both closed without landing. Meanwhile go-libp2p has
-shipped `peerdiversity` inside `go-libp2p-kbucket` for years, and py-libp2p
-merged per-subnet caps in [#1399][1399].
+Three libp2p implementations have made three different choices about
+routing-table address diversity, and not one of them is backed by a published
+measurement. go-libp2p has shipped `peerdiversity` inside `go-libp2p-kbucket`
+for years, grouping IPv4 by /16. py-libp2p merged per-subnet caps in
+[#1399][1399] at /24. rust-libp2p has nothing at the address level.
 
-The gap is not that nobody has proposed a defence. It is that nobody has
-published a number.
+rust-libp2p *has* shipped the other S/Kademlia counter — disjoint lookup paths,
+since v0.20.0 — and tests it adversarially: `s_kademlia_disjoint_paths` scripts
+a malicious response returning peers closer than the honest ones, and
+`disjoint_query_does_not_finish_before_all_paths_did` runs three real swarms
+with an adversary among them. Two issues proposing further Sybil defences,
+[#4769][4769] and [#1352][1352], closed without one landing. The public threads
+don't record a single reason for either, so this repository doesn't guess at
+one.
+
+The gap is not that nobody has proposed a defence, and not that nobody cares.
+It is that nobody has published a number — for the attack, or for any of the
+defences.
 
 This repository exists to produce that number. The reference filter in
 `src/filter.rs` is here so the testbed has something to measure — it is
@@ -50,9 +68,16 @@ its own docs.
 
 | | go-libp2p | py-libp2p | rust-libp2p |
 |---|---|---|---|
-| Disjoint lookup paths | — | missing | present, opt-in, off by default |
+| Disjoint lookup paths | parallel but not disjoint | missing | present, opt-in, off by default |
 | IP/subnet diversity in k-buckets | shipped, /16 | shipped, /24 ([#1399][1399]) | **missing** |
-| Eclipse testbed on real nodes | — | simulation only | **none** |
+| Adversarial tests for either | — | simulation only | yes — 2, on disjoint-path correctness |
+| Published cost measurement | **none** | **none** | **none** |
+
+The last row is the gap this repository exists to close. Phase 1 closes the
+attack side of it; the defence side needs Phase 4. The go-libp2p disjoint-path
+entry follows [arXiv:2505.01139][arxiv], which finds Kubo issues parallel
+queries but aggregates results into one structure rather than keeping paths
+disjoint.
 
 ## The questions
 
@@ -138,12 +163,19 @@ flowchart LR
 
 ## Why the filter is not the product
 
-`SubnetDiversityFilter` wraps `kad::Behaviour` and depends on the *event
-semantics* of `BucketInserts::Manual` — that `RoutablePeer` means "kad is asking
-permission." That is an observable implementation detail, not a documented
-contract, so a kad minor release could change its meaning without breaking
-compilation. Silent semantic drift is the worst failure mode a security
-component has.
+`SubnetDiversityFilter` wraps `kad::Behaviour` and is driven by the event
+semantics of `BucketInserts::Manual`. Those semantics are *documented* — kad's
+own rustdoc says that under `Manual` peers enter the table only via
+`add_address`, and that `RoutablePeer` means the peer "has not been added." So
+this is public API, not something reverse-engineered.
+
+Two things still keep it from being a foundation for other crates. Documented
+behaviour is not a stability guarantee, and a change here would not fail to
+compile — the types stay identical while the meaning moves, which is the worst
+failure mode a security component has (hence `libp2p` being held back from
+automated dependency bumps). And `RoutablePeer` fires for two distinct reasons,
+`Manual` being configured *or* the bucket being full, so the event alone does
+not tell you which.
 
 The admission decision it makes on every peer, under `BucketInserts::Manual`:
 
@@ -189,10 +221,9 @@ table-wide cap defaulting to `0` (#1442). go-libp2p uses `/16` and
 `maxForTable=3`. This repository's scaffold picked `6`. Three implementations,
 three answers, and no measurement behind any of them.
 
-rust-libp2p is option value, not the thesis. As of September 2026 it has had no
-non-dependabot merge in over five weeks; `libp2p-kad` has since moved 0.48.0 →
-0.49.0 (in `libp2p 0.57`), which this crate now builds against, but nothing here
-is sequenced behind an upstream decision regardless.
+rust-libp2p is option value, not the thesis: nothing here is sequenced behind an
+upstream decision, and no claim here depends on one being made. `libp2p-kad`
+moved 0.48.0 → 0.49.0 in `libp2p 0.57`, which this crate builds against.
 
 ## Roadmap
 

@@ -18,10 +18,9 @@ table-wide cap defaulting to `0` (PR #1442). Every one of those values was
 chosen by argument. go-libp2p uses `/16` and `maxForTable=3`. This repository's
 scaffold picked `6`. Three implementations, three answers, no data.
 
-rust-libp2p is option value. As of September 2026 it has had no non-dependabot
-merge in over five weeks; `libp2p-kad` has since moved 0.48.0 → 0.49.0 (in
-`libp2p 0.57`), which this crate now builds against, but nothing here should be
-sequenced behind an upstream decision regardless.
+rust-libp2p is option value: nothing here should be sequenced behind an upstream
+decision, and no claim here depends on one being made. `libp2p-kad` moved
+0.48.0 → 0.49.0 in `libp2p 0.57`, which this crate builds against.
 
 ---
 

@@ -8,14 +8,31 @@
 //! intended as a dependency for other crates, and its API carries no stability
 //! guarantee.
 //!
-//! The reason is structural. This wrapper depends on the *event semantics* of
-//! [`kad::BucketInserts::Manual`] — specifically that
-//! [`kad::Event::RoutablePeer`] means "kad is asking permission". That is an
-//! observable implementation detail, not a documented contract, so a kad minor
-//! release could change its meaning without breaking compilation. Silent
-//! semantic drift is the worst failure mode available to a security component,
-//! which is why the durable version of this belongs behind an explicit hook
-//! inside `libp2p-kad` rather than in a wrapper outside it.
+//! The reason is structural. This wrapper is driven by the *event semantics* of
+//! [`kad::BucketInserts::Manual`], and those semantics are documented: `Manual`
+//! says "new peers and addresses are only added to the routing table via
+//! explicit calls to `Behaviour::add_address`", and
+//! [`kad::Event::RoutablePeer`] says the peer "has not been added to the
+//! routing table" and "must be explicitly added via `Behaviour::add_address`".
+//! That is the contract this filter implements, and it is public API rather
+//! than something reverse-engineered.
+//!
+//! Two caveats keep it from being a foundation to build other crates on:
+//!
+//! 1. Documented behaviour is not a stability guarantee, and a change here
+//!    would not fail to compile — the types stay identical while the meaning
+//!    moves. Silent semantic drift is the worst failure mode available to a
+//!    security component, which is why `libp2p` is held back from automated
+//!    dependency bumps (see `.github/dependabot.yml`) and why kad upgrades get
+//!    reviewed by hand.
+//! 2. `RoutablePeer` is emitted for *two* distinct reasons — `Manual` is
+//!    configured, **or** the bucket is full — so the event alone does not say
+//!    which. The filter must not read it as "kad is asking permission"
+//!    unconditionally.
+//!
+//! Both are reasons the durable version of this belongs behind an explicit
+//! admission hook inside `libp2p-kad` rather than in a wrapper outside it,
+//! where the caller's intent is unambiguous.
 //!
 //! Compare go-libp2p, which puts `peerdiversity` *inside* `go-libp2p-kbucket`
 //! as a filter hook rather than wrapping the routing table from outside. See
@@ -55,7 +72,7 @@ use std::{
 use ipnet::IpNet;
 use libp2p::{
     core::{transport::PortUse, Endpoint},
-    kad::{self, store::RecordStore, BucketInserts, KBucketKey},
+    kad::{self, store::RecordStore, BucketInserts, KBucketKey, RoutingUpdate},
     swarm::{
         ConnectionDenied, ConnectionId, FromSwarm, NetworkBehaviour, THandler, THandlerInEvent,
         THandlerOutEvent, ToSwarm,
@@ -161,7 +178,23 @@ where
         let bucket = self.bucket_index(&peer);
         match self.ledger.try_admit(peer, subnet, bucket, &self.policy) {
             Ok(()) => {
-                self.inner.add_address(&peer, address);
+                // `RoutablePeer` fires for two reasons — `Manual` is configured,
+                // or the bucket is full — so admitting here is a request, not a
+                // conclusion. `add_address` reports what actually happened, and
+                // the ledger has to match: counting a peer kad never seated
+                // inflates that subnet's occupancy and starves the table of
+                // legitimate peers from it later, which is the failure this
+                // filter exists to avoid causing.
+                match self.inner.add_address(&peer, address) {
+                    RoutingUpdate::Success => {}
+                    outcome @ (RoutingUpdate::Pending | RoutingUpdate::Failed) => {
+                        tracing::debug!(
+                            %peer, %subnet, ?bucket, ?outcome,
+                            "kad did not seat the peer; releasing its ledger slot"
+                        );
+                        self.ledger.release(&peer);
+                    }
+                }
                 None
             }
             Err(reason) => {
@@ -320,5 +353,77 @@ where
                 Poll::Pending => return Poll::Pending,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use libp2p::kad::store::MemoryStore;
+
+    use super::*;
+    use crate::policy::DiversityPolicy;
+
+    fn filter() -> (PeerId, SubnetDiversityFilter<MemoryStore>) {
+        let local = PeerId::random();
+        let f = SubnetDiversityFilter::new(
+            local,
+            MemoryStore::new(local),
+            kad::Config::default(),
+            DiversityPolicy::default(),
+        );
+        (local, f)
+    }
+
+    /// `RoutablePeer` is emitted both when `Manual` is configured and when the
+    /// bucket is full, so admission is a request rather than a conclusion. If
+    /// the ledger counted peers kad declined to seat, subnet occupancy would
+    /// inflate and the filter would start refusing legitimate peers from that
+    /// subnet — causing the harm it exists to prevent.
+    ///
+    /// `add_address` returns `Failed` for a multiaddr carrying a `/p2p`
+    /// component belonging to a different peer, which exercises that path
+    /// without needing a full bucket or a live swarm.
+    #[test]
+    fn ledger_releases_when_kad_declines_to_seat_the_peer() {
+        let (_local, mut f) = filter();
+        let peer = PeerId::random();
+        let someone_else = PeerId::random();
+        let addr: Multiaddr = format!("/ip4/45.33.62.7/tcp/4001/p2p/{someone_else}")
+            .parse()
+            .expect("valid multiaddr");
+
+        assert_eq!(f.diversity_stats().tracked_peers, 0);
+        let rejection = f.consider(peer, addr);
+
+        assert!(rejection.is_none(), "should not be a diversity rejection");
+        assert_eq!(
+            f.diversity_stats().tracked_peers,
+            0,
+            "ledger must not count a peer kad refused to seat"
+        );
+        assert_eq!(f.diversity_stats().distinct_subnets, 0);
+    }
+
+    /// The companion case: a peer kad does seat stays counted.
+    #[test]
+    fn ledger_counts_a_peer_kad_accepts() {
+        let (_local, mut f) = filter();
+        let peer = PeerId::random();
+        let addr: Multiaddr = "/ip4/45.33.62.7/tcp/4001".parse().expect("valid multiaddr");
+
+        assert!(f.consider(peer, addr).is_none());
+        assert_eq!(f.diversity_stats().tracked_peers, 1);
+        assert_eq!(f.diversity_stats().distinct_subnets, 1);
+    }
+
+    /// An exempt address (no globally-routable IP) is admitted without being
+    /// counted against any subnet, so the ledger stays empty either way.
+    #[test]
+    fn exempt_peers_are_never_counted() {
+        let (_local, mut f) = filter();
+        let addr: Multiaddr = "/dns4/bootstrap.example/tcp/4001".parse().expect("valid");
+
+        assert!(f.consider(PeerId::random(), addr).is_none());
+        assert_eq!(f.diversity_stats().tracked_peers, 0);
     }
 }

@@ -81,8 +81,14 @@ question most likely to determine whether this is shippable.
   table, not a wrapper around it.
 - **py-libp2p** — PR #1399 (merged), per-bucket cap, IPv4 /24, IPv6 /48.
   PR #1442 adds configurability and a table-wide cap.
-- **rust-libp2p** — nothing. `kbucket_inserts` chooses between `OnConnected`
-  and `Manual`; neither is address-aware.
+- **rust-libp2p** — nothing *at the address level*. `kbucket_inserts` chooses
+  between `OnConnected` and `Manual`; neither is address-aware. It does ship the
+  other S/Kademlia counter — disjoint lookup paths, since v0.20.0 — and tests it
+  against an adversary (`s_kademlia_disjoint_paths` scripts a malicious response
+  returning peers closer than the honest ones;
+  `disjoint_query_does_not_finish_before_all_paths_did` runs three real swarms
+  with an adversary among them). What is absent is a defence on *placement*, not
+  attention to the threat.
 - **S/Kademlia** (Baumgart & Mies, 2007) — crypto-puzzle IDs plus disjoint
   paths. The puzzle half needs an ecosystem-wide spec change.
 - **Cholez et al.** — K-L divergence detection of ID clustering in the KAD
