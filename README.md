@@ -27,6 +27,14 @@ Neither is a better-stocked version of the other.
 > placement is not merely cheap — it is free, and the defence has to act on
 > placement because nothing acts on minting.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/phase1-crossover-dark.svg">
+  <img alt="Common-prefix length against grinding effort. The worst of the attacker's twenty ground identities crosses above the closest of the network's ~11,268 honest peers after roughly six seconds of single-core grinding." src="docs/images/phase1-crossover-light.svg" width="100%">
+</picture>
+
+*Generated from the committed result file by `scripts/mkchart.py`, including the
+crossover annotation — the picture cannot drift from the data.*
+
 | trials | time | mean CPL of kept 20 | 20th-best | best |
 |---|---|---|---|---|
 | 100,000 | 1.8 s | 12.88 | 12.0 | 16.0 |
@@ -100,19 +108,61 @@ it.
 **What would falsify the hypothesis** is stated up front in the methodology, and
 a negative result gets published the same as a positive one.
 
-## Usage
+## How to use this
+
+**What works today is the attack side.** `grind` measures it, and
+`scripts/phase1_grind.py` turns that into a result file. `run` — the scenario
+matrix that measures the *defences* — is a stub that exits non-zero; that is
+Phase 4. Nothing here is published to crates.io, and there is no reason to
+depend on it as a library: this is a repository you clone and run.
 
 ```sh
-# How cheap is a targeted identity? Runs standalone, no network.
-cargo run --release -- grind --trials 1000000 --keep 20
-
-# The scenario matrix (once testbed::run exists)
-cargo run --release -- run --scenario all --output docs/results/matrix.json
-
-# The /16-vs-/24 sweep
-cargo run --release -- run --scenario diversity --prefix-v4 16
-cargo run --release -- run --scenario diversity --prefix-v4 24
+git clone https://github.com/yashksaini-coder/kad-eclipse-testbed
+cd kad-eclipse-testbed
+cargo build --release
 ```
+
+**Reproduce the headline number** — how long until twenty ground identities all
+beat every honest peer:
+
+```sh
+cargo run --release -- grind --trials 1000000 --keep 20 --seed 1
+```
+
+**Regenerate the committed result** (10/10/5 repetitions, ~16 min; `PLAN`
+shortens it):
+
+```sh
+make results                               # writes docs/results/<today>-grind.json
+make results PLAN=--plan=100000:5          # quick version
+python3 scripts/mkchart.py docs/results/<file>.json docs/images   # redraw the chart
+```
+
+**Feed it into something else** — `--json` emits the seed and the CPL of every
+kept identity, so the grinder is usable as a measurement primitive without
+touching the Rust:
+
+```sh
+cargo run --release -- grind --trials 100000 --seed 42 --json | jq '.kept[].cpl'
+```
+
+**Point it at your own network.** The honest baseline in the result file assumes
+the Amino DHT's ~11,268 peers. If you run a different Kademlia network,
+`AMINO_PEERS` in `scripts/phase1_grind.py` is the one number to change — the
+comparison is `log2(N)` for the closest honest peer and `log2(N/20)` for the
+20th.
+
+**What does not work yet:**
+
+```sh
+cargo run --release -- run --scenario all     # Error: testbed::run is not implemented yet
+```
+
+### If you only want the finding
+
+Read [`docs/results/README.md`](docs/results/README.md). Every number there has
+a committed JSON file behind it, and the file records the seeds, so you can
+re-derive any of it rather than trusting the table.
 
 ## Layout
 
